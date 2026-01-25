@@ -10,7 +10,7 @@ def render() -> None:
 
     **Configuration Parameters:**
     - **Mode:** Unrestricted or Time-Sensitive.
-    - **GameTeam Size (k):** Number of players per team (1-5).
+    - **Team Size (k):** Number of players per team (1-5).
     - **Fairness Norm (p):** Norm used to measure fairness (≥1.0).
     - **Uniformity Norm (q):** Norm used to measure uniformity (≥1.0).
     - **Fairness Weight (α):** Weight given to fairness in matchmaking (>0.0).
