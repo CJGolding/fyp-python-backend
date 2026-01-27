@@ -45,7 +45,7 @@ def render_player_node(graph: Digraph, node_id: str, player: dict, fill_colour: 
     """
     label: str = f"P{player['id']}\ns={player['skill']}"
     if is_time_sensitive:
-        label += f"\nt={player.get('wait_time', 0):.2f}"
+        label += f"\nt={player.get('enqueue_time', 0):.2f}"
 
     graph.node(node_id, label, fillcolor=fill_colour, fontcolor=font_colour)
 
