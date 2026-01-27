@@ -7,14 +7,8 @@ from pandas import DataFrame, concat
 from common.types import RecordedStatistic
 
 
-def render(
-        data: RecordedStatistic,
-        x_label: str,
-        y_label: str,
-        primary_label: str,
-        secondary_data: Optional[RecordedStatistic] = None,
-        secondary_label: Optional[str] = None,
-) -> None:
+def render(data: RecordedStatistic, x_label: str, y_label: str, primary_label: str,
+           secondary_data: Optional[RecordedStatistic] = None, secondary_label: Optional[str] = None) -> None:
     """
     Render a line chart of a given recorded statistic or info message if no data.
 

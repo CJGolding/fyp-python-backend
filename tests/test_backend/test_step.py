@@ -7,10 +7,11 @@ from common.actions import QueueActions, HeapActions
 
 def test_step_to_dict() -> None:
     min_heap = MinHeap()
-    min_heap.push(CandidateGame(Player(id=1, skill=100), {Player(id=1, skill=100)}, {Player(id=2, skill=150)}, 1.0, 1.0, 0.1))
+    min_heap.push(CandidateGame(Player(player_id=1, skill=100), {Player(player_id=1, skill=100)}, {
+        Player(player_id=2, skill=150)}, 1.0, 1.0, 0.1))
     step = Step(
         created_matches=[],
-        queue_state=SortedSet([Player(id=1, skill=100), Player(id=2, skill=150)]),
+        queue_state=SortedSet([Player(player_id=1, skill=100), Player(player_id=2, skill=150)]),
         heap_state=min_heap
     )
     step_dict = step.to_dict()
@@ -18,7 +19,7 @@ def test_step_to_dict() -> None:
     for player in step_dict["queue_snapshot"]["state"]:
         assert sorted(list(player.keys())) == sorted(["id", "skill", "enqueue_time", "wait_time"])
     for game in step_dict["heap_snapshot"]["state"]:
-        assert sorted(list(game.keys())) == sorted(["anchor_player_id", "team_x", "team_y", "imbalance"])
+        assert sorted(list(game.keys())) == sorted(["anchor_player_id", "team_x", "team_y", "imbalance", "priority"])
     assert step_dict["created_matches"]["state"] == []
 
 def test_when_providing_snapshots_then_they_are_used() -> None:

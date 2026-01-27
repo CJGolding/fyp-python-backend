@@ -44,10 +44,12 @@ type RecordedStatistic = list[Number]
 type RecordedParameters = dict[str, Number]
 
 # Backend types
-type GameTeam = set[_Player]
-type GamePlayers = set[_Player]
-type PlayerCombination = tuple[_Player, ...]
+type GameTeam = set[Player]
+type GamePlayers = set[Player]
+type AffectedPlayers = set[Player]
 type LambdaFunction = Callable[[Number], bool]
+type BestCandidateResult = tuple[CandidateGame, float, int]
+type PartitionFunction = Callable[[Player, GamePlayers], BestCandidateResult]
 
 # Project-wide types
 type AsynchronousFunction = Callable

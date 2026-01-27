@@ -3,7 +3,7 @@ import logging
 from backend.candidate_game import CandidateGame
 from backend.player import Player
 from backend.unrestricted_game_manager import UnrestrictedGameManager
-from common.types import RecordedParameters
+from common.types import RecordedParameters, GameTeam
 
 LOG: logging.Logger = logging.getLogger(__name__)
 
@@ -19,9 +19,11 @@ class TimeSensitiveGameManager(UnrestrictedGameManager):
         :param fairness_weight: Weighting factor for fairness in imbalance calculation.
         :param queue_weight: Weighting factor for queue time in priority calculation.
         :param is_recording: Flag to enable or disable recording of matchmaking steps.
+        :param approximate: Flag to enable or disable greedy approximation in matchmaking.
         """
         self.queue_weight: float = self.validate_config(queue_weight, lambda x: x > 0, "queue_weight", "greater than 0")
         super().__init__(team_size, p_norm, q_norm, fairness_weight, is_recording, approximate)
+        self.game_key_function: str = "priority"
 
     def __repr__(self) -> str:
         return f"Team Size: {self.team_size}, P: {self.p_norm}, Q: {self.q_norm}, α: {self.fairness_weight}, β: {self.queue_weight}, Window: {self.skill_window}"
@@ -32,8 +34,5 @@ class TimeSensitiveGameManager(UnrestrictedGameManager):
         params["queue_weight"] = self.queue_weight
         return params
 
-    def _create_candidate_game(self, player: Player, team_x: set[Player], team_y: set[Player]) -> CandidateGame:
+    def _create_candidate_game(self, player: Player, team_x: GameTeam, team_y: GameTeam) -> CandidateGame:
         return CandidateGame(player, team_x, team_y, self.p_norm, self.q_norm, self.fairness_weight, self.queue_weight)
-
-    def _calculate_best_game_including_player(self, player: Player, game_key: str = 'priority') -> CandidateGame:
-        return super()._calculate_best_game_including_player(player, game_key)

@@ -16,6 +16,7 @@ _HEAP_LEGEND: list[LegendItem] = [
     ("Node", Colours.NODE, Colours.TEXT_DARK),
     ("New", Colours.NEW_NODE, Colours.TEXT_DARK),
     ("Removed", Colours.REMOVED_NODE, Colours.TEXT_DARK),
+    ("Created Match", Colours.MATCH_NODE, Colours.TEXT_DARK)
 ]
 
 
@@ -30,6 +31,7 @@ def _get_node_fill_colour(index: int, target_index: int, action: HeapActions) ->
     if target_index == index:
         if action == HeapActions.REMOVE: return Colours.REMOVED_NODE
         if action == HeapActions.INSERT: return Colours.NEW_NODE
+        if action == HeapActions.CREATE: return Colours.MATCH_NODE
     if index == 0: return Colours.ROOT
     return Colours.NODE
 

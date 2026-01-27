@@ -38,7 +38,7 @@ def test_when_recording_step_then_step_is_added_and_stats_updated() -> None:
 def test_when_preserve_queue_then_previous_queue_is_copied() -> None:
     recorder = Recorder()
     dummy_step1 = {
-        "queue_state": SortedSet([Player(id=1, skill=100)]),
+        "queue_state": SortedSet([Player(player_id=1, skill=100)]),
         "heap_state": MinHeap(),
         "created_matches": []
     }
@@ -56,7 +56,8 @@ def test_when_preserve_queue_then_previous_queue_is_copied() -> None:
 def test_when_preserve_heap_then_previous_heap_is_copied() -> None:
     recorder = Recorder()
     heap = MinHeap()
-    heap.push(CandidateGame(Player(id=1, skill=100), {Player(id=1, skill=100)}, {Player(id=2, skill=150)}, 1.0, 1.0, 0.1))
+    heap.push(CandidateGame(Player(player_id=1, skill=100), {Player(player_id=1, skill=100)}, {
+        Player(player_id=2, skill=150)}, 1.0, 1.0, 0.1))
     dummy_step1 = {
         "queue_state": SortedSet(),
         "heap_state": heap,

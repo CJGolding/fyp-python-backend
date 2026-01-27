@@ -6,6 +6,7 @@ class HeapActions(Enum):
     INSERT = 1
     REMOVE = 2
     IDLE = 3
+    CREATE = 4
 
 
 class QueueActions(Enum):

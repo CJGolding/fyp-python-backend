@@ -19,3 +19,4 @@ class Colours(StrEnum):
     REMOVED_NODE = "#ffcdd2"
     TEXT_DARK = "#333333"
     TEXT_LIGHT = "#ffffff"
+    MATCH_NODE = "#aed581"

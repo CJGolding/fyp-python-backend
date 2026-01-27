@@ -72,8 +72,8 @@ def init_matchmaking_system(system_class):
         ).execute()
         try:
             return system_class(**config)
-        except ValueError:
-            LOG.error("Invalid input parameters. Please try again.")
+        except ValueError as e:
+            LOG.error(f"Configuration error: {e}")
             continue
 
 
@@ -81,28 +81,31 @@ def start_matchmaking_loop(system):
     while True:
         option: str = inquirer.select(**get_player_insertion_options()).execute()
         if option == "insert_players_manually":
-            skill_level: int = inquirer.number(
+            skill_level: int = int(inquirer.number(
                 message="Enter player skill level: ",
                 min_allowed=0,
+                max_allowed=3000,
                 default=1500
-            ).execute()
+            ).execute())
             system.insert_player_manually(skill_level)
         elif option == "insert_players_automatically":
-            num_players: int = inquirer.number(
+            num_players: int = int(inquirer.number(
                 message="Enter number of players to insert: ",
                 min_allowed=1,
                 default=10
-            ).execute()
-            mean = inquirer.number(
+            ).execute())
+            mean = int(inquirer.number(
                 message="Enter mean skill level: ",
                 min_allowed=0,
+                max_allowed=3000,
                 default=1500
-            ).execute()
-            std_dev = inquirer.number(
+            ).execute())
+            std_dev = int(inquirer.number(
                 message="Enter standard deviation of skill levels: ",
                 min_allowed=0,
+                max_allowed=1500,
                 default=200
-            ).execute()
+            ).execute())
             system.insert_players_automatically(num_players, mean, std_dev)
         elif option == "start_matchmaking":
             system.create_match()
@@ -111,7 +114,7 @@ def start_matchmaking_loop(system):
                 for index, step in enumerate(system.recorder.get_steps()):
                     LOG.info(f"Step {index + 1}: {step}")
             else:
-                LOG.info("Recording is disabled. No steps to display.")
+                LOG.warning("Recording is disabled. No steps to display.")
         elif option == "exit":
             break
 

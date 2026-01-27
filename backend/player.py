@@ -1,23 +1,20 @@
-from dataclasses import dataclass, field
 from typing import Optional
 
 from backend._clock import now
 from common.types import Number
 
 
-@dataclass
 class Player:
-    """
-    Represents a player in the matchmaking queue. Data class for easy storage and access to player attributes.
-    :param id: Unique identifier for the player.
-    :param skill: Skill level of the player.
-    :param enqueue_time: Timestamp when the player entered the queue.
-    :param dequeue_time: Timestamp when the player exited the queue (None if still in queue
-    """
-    id: int
-    skill: int
-    enqueue_time: float = field(default_factory=now)
-    dequeue_time: Optional[float] = None
+    def __init__(self, player_id: int, skill: int) -> None:
+        """
+        Represents a player in the matchmaking queue. Data class for easy storage and access to player attributes.
+        :param player_id: Unique identifier for the player.
+        :param skill: Skill level of the player.
+        """
+        self.id: int = player_id
+        self.skill: int = skill
+        self.enqueue_time: float = now()
+        self.dequeue_time: Optional[float] = None
 
     def to_dict(self) -> dict[str, Number]:
         """Convert the Player instance to a dictionary for recording."""
