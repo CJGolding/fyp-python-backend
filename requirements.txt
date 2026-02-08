@@ -1,4 +1,4 @@
-sortedcontainers
-streamlit
-graphviz
+fastapi
+uvicorn[standard]
+pydantic
 InquirerPy

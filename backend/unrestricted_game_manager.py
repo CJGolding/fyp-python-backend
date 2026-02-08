@@ -5,6 +5,7 @@ import time
 from itertools import combinations, count
 from threading import Thread
 from typing import Optional
+from uuid import uuid4
 
 from backend._clock import reset as reset_clock
 from backend.candidate_game import CandidateGame
@@ -36,11 +37,11 @@ class UnrestrictedGameManager:
         :param approximate: Flag to enable or disable greedy approximation in matchmaking.
         """
         reset_clock()
-        self.team_size: int = self.validate_config(team_size, lambda x: 1 <= x <= 5, "team_size", "between 1 and 5")
-        self.p_norm: float = self.validate_config(p_norm, lambda x: x >= 1, "p_norm", "greater than or equal to 1.0")
-        self.q_norm: float = self.validate_config(q_norm, lambda x: x >= 1, "q_norm", "greater than or equal to 1.0")
-        self.fairness_weight: float = self.validate_config(fairness_weight, lambda x: x > 0, "fairness_weight",
-                                                           "greater than 0.0")
+        self.team_size: int = self.validate_config(team_size, lambda x: 1 <= x <= 5, "team_size", "1 <= x <= 5")
+        self.p_norm: float = self.validate_config(p_norm, lambda x: 1 <= x <= 10, "p_norm", "1 <= x <= 10")
+        self.q_norm: float = self.validate_config(q_norm, lambda x: 1 <= x <= 10, "q_norm", "1 <= x <= 10")
+        self.fairness_weight: float = self.validate_config(fairness_weight, lambda x: 0 < x <= 10, "fairness_weight",
+                                                           "0 < x <= 10")
         self.skill_window: int = math.ceil(4 * (1 + fairness_weight) * team_size ** (1 + (1 / q_norm)))
         self.required_players: int = (2 * self.team_size) - 1
         self.players: SortedSet = SortedSet()
@@ -51,6 +52,7 @@ class UnrestrictedGameManager:
         self._partition_solver: PartitionFunction = self._greedy_balanced_partition if approximate else self._brute_force_partition
         self.recorder: Optional[Recorder] = Recorder() if is_recording else None
         self._current_thread: Optional[Thread] = None
+        self._session_id: str = str(uuid4())
         self._record()
         LOG.info(f"Created {self.__class__.__name__}: {self}")
 
@@ -58,8 +60,9 @@ class UnrestrictedGameManager:
         return f"Team Size: {self.team_size}, P: {self.p_norm}, Q: {self.q_norm}, α: {self.fairness_weight}, Window: {self.skill_window}"
 
     def get_parameters(self) -> RecordedParameters:
-        """Get the configuration parameters of the UnrestrictedGameManager for frontend state management."""
+        """Get the configuration parameters of the UnrestrictedGameManager for frontend (deprecated) state management."""
         return {
+            "session_id": self._session_id,
             "team_size": self.team_size,
             "p_norm": self.p_norm,
             "q_norm": self.q_norm,
@@ -80,7 +83,6 @@ class UnrestrictedGameManager:
             self.recorder.record_step(**kwargs,
                                       queue_state=self.players,
                                       heap_state=self.candidate_games,
-                                      created_matches=self.created_matches
                                       )
 
     def _create_candidate_game(self, player: Player, team_x: set[Player], team_y: set[Player]) -> CandidateGame:
@@ -109,9 +111,9 @@ class UnrestrictedGameManager:
         player_index: int = self.players.index(player)
         window_start_index: int = player_index + 1
         window_end_index: int = min(len(self.players), window_start_index + self.skill_window)
-        visible_players: SortedSet = self.players[window_start_index: window_end_index]
+        visible_players: list[Player] = self.players[window_start_index: window_end_index]
         self._record(target_player=player_index, queue_action=QueueActions.ANCHOR,
-                     window=set(range(window_start_index, window_end_index)))
+                     window=list(range(window_start_index, window_end_index)))
 
         if len(visible_players) < self.required_players:
             return None
@@ -203,7 +205,7 @@ class UnrestrictedGameManager:
         """
         self.players.add(player)
         player_index: int = self.players.index(player)
-        self._record(target_player=player_index, queue_action=QueueActions.INSERT)
+        self._record(add_player=player, target_player=player_index, queue_action=QueueActions.INSERT)
         affected_players: AffectedPlayers = set(self.players[max(0, player_index - self.skill_window): player_index])
 
         if not bulk:
@@ -213,7 +215,7 @@ class UnrestrictedGameManager:
                              team_x={self.players.index(p) for p in best_game.team_x},
                              team_y={self.players.index(p) for p in best_game.team_y})
                 self.candidate_games.push(best_game)
-                self._record(preserve_queue=True, target_game=self.candidate_games.index(player.id),
+                self._record(add_game=best_game, target_game=self.candidate_games.index(player.id),
                              heap_action=HeapActions.INSERT)
             else:
                 self._record(queue_action=QueueActions.GAME_NOT_FOUND)
@@ -278,7 +280,8 @@ class UnrestrictedGameManager:
                              team_y=[self.players.index(p) for p in best_game.team_y]
                              )
                 self.candidate_games.push(best_game)
-                self._record(target_game=self.candidate_games.index(player.id), heap_action=HeapActions.INSERT)
+                self._record(add_game=best_game, target_game=self.candidate_games.index(player.id),
+                             heap_action=HeapActions.INSERT)
             else:
                 if player.id in self.candidate_games:
                     self._record(queue_action=QueueActions.GAME_NOT_FOUND,
@@ -299,7 +302,6 @@ class UnrestrictedGameManager:
         Create a match from the best candidate game and remove involved players from the queue.
         The game is implicitly removed from the candidate games heap as players are removed and their games are updated.
         """
-        self._record(clear=True)
         game: CandidateGame = self._query_best_game()
         if game is None:
             self._record(queue_action=QueueActions.GAME_NOT_FOUND)
@@ -321,7 +323,6 @@ class UnrestrictedGameManager:
         Insert a single player with the specified skill level into the matchmaking queue.
         :param player_skill: Skill level of the player to insert (non-negative integer).
         """
-        self._record(clear=True)
         player: Player = Player(next(self._current_player_id), player_skill)
         self._insert_player(player)
 
@@ -332,7 +333,6 @@ class UnrestrictedGameManager:
         :param mean: Mean skill level for the Normal distribution.
         :param std_dev: Standard deviation for the Normal distribution.
         """
-        self._record(clear=True)
         players: AffectedPlayers = {Player(next(self._current_player_id), abs(int(round(random.gauss(mean, std_dev)))))
                                     for _
                                     in range(num_players)}

@@ -9,11 +9,11 @@ class _TreeNode:
         Internal node class for AVL tree implementation in SortedSet.
         :param player: The Player object stored in this node.
         """
-        self.player = player
-        self.left = None
-        self.right = None
-        self.height = 1
-        self.size = 1
+        self.player: Player = player
+        self.left: Optional[_TreeNode] = None
+        self.right: Optional[_TreeNode] = None
+        self.height: int = 1
+        self.size: int = 1
 
 
 class SortedSet:
@@ -52,7 +52,7 @@ class SortedSet:
     def __get_by_index(self, index: int) -> Optional[Player]:
         """
         Get the player at a specific index in sorted order.
-        Time Complexity: O(log n) for balanced tree.
+        Time Complexity: O(log n)
         :param index: The index of the player to retrieve (0-based).
         :return: The Player at the specified index, or None if index is out of bounds.
         """
@@ -124,7 +124,7 @@ class SortedSet:
             return root
 
         self.__update_node(root)
-        balance = self.__get_balance(root)
+        balance: int = self.__get_balance(root)
 
         if balance > 1 and value < root.left.player:
             return self.__right_rotate(root)
@@ -163,7 +163,7 @@ class SortedSet:
             elif not root.right:
                 return root.left
 
-            temp = self.__get_min_value_node(root.right)
+            temp: _TreeNode = self.__get_min_value_node(root.right)
             root.player = temp.player
             root.right = self.__delete(root.right, temp.player)
 

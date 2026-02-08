@@ -1,8 +1,3 @@
-"""
-A simple monotonic clock utility to track elapsed time since Game Manager initialisation.
-This is useful when calculating the priority of time-sensitive matches, avoiding very large values based on timestamps.
-"""
-
 from time import monotonic
 
 _t0 = monotonic()

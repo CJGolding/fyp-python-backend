@@ -21,8 +21,8 @@ class Player:
         return {
             "id": self.id,
             "skill": self.skill,
-            "enqueue_time": self.enqueue_time,
-            "wait_time": self.wait_time
+            "enqueue_time": round(self.enqueue_time, 2),
+            "wait_time": round(self.wait_time, 2)
         }
 
     @property

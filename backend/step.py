@@ -1,48 +1,48 @@
 from typing import Optional
 
-from backend.snapshots import QueueSnapshot, HeapSnapshot, BaseSnapshot
+from backend.snapshots import QueueSnapshot, HeapSnapshot
 from common.actions import QueueActions, HeapActions
-from common.types import (RecordedStep, RecordedWindow, Player, RecordedTeam, RecordedGame, MinHeap, CreatedMatch,
-                          SortedSet)
+from common.types import (RecordedStep, RecordedWindow, Player, RecordedTeam, RecordedGame, MinHeap, SortedSet,
+                          CandidateGame, RecordedPlayerIndex)
 
 
 class Step:
-    def __init__(self, created_matches: list[CreatedMatch], queue_state: SortedSet = None, heap_state: MinHeap = None,
-                 queue_snapshot: Optional[QueueSnapshot] = None, heap_snapshot: Optional[HeapSnapshot] = None,
-                 window: Optional[RecordedWindow] = None, target_player: Optional[Player] = None,
+    def __init__(self, queue_state: SortedSet = None, heap_state: MinHeap = None,
+                 window: Optional[RecordedWindow] = None, target_player: Optional[RecordedPlayerIndex] = None,
                  team_x: Optional[RecordedTeam] = None, team_y: Optional[RecordedTeam] = None,
+                 add_player: Player = None, add_game: Optional[CandidateGame] = None,
                  queue_action: QueueActions = QueueActions.IDLE, target_game: Optional[RecordedGame] = None,
                  heap_action: HeapActions = HeapActions.IDLE) -> None:
         """
         Represents a single step in the matchmaking process, capturing snapshots of the queue, heap, and created matches.
         :param queue_state: Current state of the matchmaking queue as a SortedSet of Players.
         :param heap_state: Current state of the candidate game heap as a MinHeap of CandidateGames.
-        :param created_matches: List of matches created up to this step.
-        :param queue_snapshot: Optional pre-existing QueueSnapshot to use.
-        :param heap_snapshot: Optional pre-existing HeapSnapshot to use.
         :param window: Optional skill window used in the queue snapshot as a range of indices.
-        :param target_player: Optional target player involved in the queue action.
-        :param team_x: Optional list of player IDs in team X for the queue snapshot.
-        :param team_y: Optional list of player IDs in team Y for the queue snapshot.
+        :param target_player: Optional target player index involved in the queue action.
+        :param team_x: Optional list of player indices in team X for the queue snapshot.
+        :param team_y: Optional list of player indices in team Y for the queue snapshot.
+        :param add_player: Optional player added to the queue during this step.
+        :param add_game: Optional candidate game added to the heap during this step.
         :param queue_action: Action taken on the queue during this step.
         :param target_game: Optional target game index involved in the heap action.
         :param heap_action: Action taken on the heap during this step.
         """
-        self.queue_snapshot: QueueSnapshot = queue_snapshot or QueueSnapshot(
+        self.queue_snapshot: QueueSnapshot = QueueSnapshot(
             state=[player.to_dict() for player in queue_state],
+            order=[player.id for player in queue_state],
+            add=add_player.to_dict() if add_player else None,
             window=window,
-            target_player=target_player,
+            target_index=target_player,
             team_x=team_x,
             team_y=team_y,
             action=queue_action
         )
-        self.heap_snapshot: HeapSnapshot = heap_snapshot or HeapSnapshot(
+        self.heap_snapshot: HeapSnapshot = HeapSnapshot(
             state=[game.to_dict() for game in heap_state],
-            target_game=target_game,
+            order=[game.anchor_player.id for game in heap_state],
+            add=add_game.to_dict() if add_game else None,
+            target_index=target_game,
             action=heap_action
-        )
-        self.created_matches: BaseSnapshot = BaseSnapshot(
-            state=[match.to_dict() for match in created_matches]
         )
 
     def to_dict(self) -> RecordedStep:
@@ -50,5 +50,4 @@ class Step:
         return {
             "queue_snapshot": self.queue_snapshot.to_dict(),
             "heap_snapshot": self.heap_snapshot.to_dict(),
-            "created_matches": self.created_matches.to_dict()
         }

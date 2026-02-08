@@ -4,6 +4,9 @@ from InquirerPy import inquirer
 
 from backend.time_sensitive_game_manager import TimeSensitiveGameManager
 from backend.unrestricted_game_manager import UnrestrictedGameManager
+from common import init_logger
+
+init_logger()
 
 LOG: logging.Logger = logging.getLogger(__name__)
 
@@ -42,16 +45,19 @@ def init_matchmaking_system(system_class):
         ).execute()), "p_norm": float(inquirer.number(
             message="Enter fairness norm (p): ",
             min_allowed=1.0,
+            max_allowed=10.0,
             default=1.0,
             float_allowed=True
         ).execute()), "q_norm": float(inquirer.number(
             message="Enter uniformity norm (q): ",
             min_allowed=1.0,
+            max_allowed=10.0,
             default=1.0,
             float_allowed=True
         ).execute()), "fairness_weight": float(inquirer.number(
             message="Enter fairness weight (α): ",
             min_allowed=0.0,
+            max_allowed=10.0,
             default=0.1,
             float_allowed=True
         ).execute())}
@@ -59,6 +65,7 @@ def init_matchmaking_system(system_class):
             config["queue_weight"]: float = float(inquirer.number(
                 message="Enter queue weight (β): ",
                 min_allowed=0.0,
+                max_allowed=10.0,
                 default=0.1,
                 float_allowed=True
             ).execute())
@@ -119,7 +126,7 @@ def start_matchmaking_loop(system):
             break
 
 
-def run():
+def main():
     """Run the matchmaking system via CLI."""
 
     system_class = inquirer.select(**get_matchmaking_options()).execute()
@@ -134,3 +141,7 @@ def run():
             LOG.info(f"{stat_name}: {stat_value}")
     LOG.info(f"Total matches created: {len(system.created_matches)}")
     LOG.info(f"Final player queue size: {len(system.players)}")
+
+
+if __name__ == "__main__":
+    main()

@@ -19,9 +19,6 @@ requirements-all: requirements
 lint:
 	. .venv/bin/activate && pip install pylint && pylint --max-line-length=120 --fail-under=8 \
 	./backend/*.py \
-	./frontend/*.py \
-	./frontend/components/*.py \
-	./frontend/panels/*.py \
 	./*.py
 
 .PHONY: test
@@ -30,8 +27,8 @@ test:
 
 .PHONY: run-cli
 run-cli:
-	. .venv/bin/activate && python3 entrypoint.py
+	. .venv/bin/activate && python3 cli_entrypoint.py
 
-.PHONY: run-app
-run-app:
-	. .venv/bin/activate && streamlit run app.py
+.PHONY: run-fastapi
+run-fastapi:
+	. .venv/bin/activate && uvicorn fastapi_entrypoint:app

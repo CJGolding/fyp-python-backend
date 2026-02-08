@@ -28,7 +28,7 @@ def test_queue_snapshot_to_dict() -> None:
 def test_heap_snapshot_to_dict() -> None:
     snapshot = HeapSnapshot(
         state=[{"anchor_player_id": 1, "team_x": [1], "team_y": [2], "imbalance": 0.0}],
-        target_game=None,
+        target_index=None,
         action=HeapActions.IDLE
     )
     snapshot_dict = snapshot.to_dict()

@@ -1,2 +1,2 @@
 from common import actions, types
-from common.colours import Colours
+from common.logger import init_logger

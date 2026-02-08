@@ -28,10 +28,10 @@ class CandidateGame:
         """Convert CandidateGame to dictionary representation for recording."""
         return {
             "anchor_player_id": self.anchor_player.id,
-            "team_x": [player.to_dict() for player in self.team_x],
-            "team_y": [player.to_dict() for player in self.team_y],
-            "imbalance": self.imbalance,
-            "priority": self.priority
+            "team_x": [player.id for player in self.team_x],
+            "team_y": [player.id for player in self.team_y],
+            "imbalance": round(self.imbalance, 2),
+            "priority": round(self.priority, 2) if self.priority is not None else None
         }
 
     def __lt__(self, other: "CandidateGame") -> bool:
@@ -42,4 +42,4 @@ class CandidateGame:
 
     def __str__(self) -> str:
         priority_string: str = f", g: {self.priority})" if self.priority is not None else ""
-        return f"CandidateGame(Player ID: {self.anchor_player.id} Team X: {[p.id for p in self.team_x]}, Team Y: {[p.id for p in self.team_y]}, f: {self.imbalance}{priority_string})"
+        return f"CandidateGame(Anchor Player ID: {self.anchor_player.id}, Team X: {[p.id for p in self.team_x]}, Team Y: {[p.id for p in self.team_y]}, f: {self.imbalance}{priority_string})"

@@ -30,28 +30,28 @@ def test_when_invalid_team_size_then_raise_value_error() -> None:
     with pytest.raises(ValueError) as e:
         UnrestrictedGameManager(team_size=6)
 
-    assert str(e.value) == "Invalid value for team_size: 6. Must be between 1 and 5."
+    assert str(e.value) == "Invalid player for team_size: 6. Must be between 1 and 5."
 
 
 def test_when_invalid_p_norm_then_raise_value_error() -> None:
     with pytest.raises(ValueError) as e:
         UnrestrictedGameManager(p_norm=0.5)
 
-    assert str(e.value) == "Invalid value for p_norm: 0.5. Must be greater than or equal to 1.0."
+    assert str(e.value) == "Invalid player for p_norm: 0.5. Must be greater than or equal to 1.0."
 
 
 def test_when_invalid_q_norm_then_raise_value_error() -> None:
     with pytest.raises(ValueError) as e:
         UnrestrictedGameManager(q_norm=0.5)
 
-    assert str(e.value) == "Invalid value for q_norm: 0.5. Must be greater than or equal to 1.0."
+    assert str(e.value) == "Invalid player for q_norm: 0.5. Must be greater than or equal to 1.0."
 
 
 def test_when_invalid_fairness_weight_then_raise_value_error() -> None:
     with pytest.raises(ValueError) as e:
         UnrestrictedGameManager(fairness_weight=0.0)
 
-    assert str(e.value) == "Invalid value for fairness_weight: 0.0. Must be greater than 0.0."
+    assert str(e.value) == "Invalid player for fairness_weight: 0.0. Must be greater than 0.0."
 
 
 def test_when_creating_candidate_game_then_imbalance_is_not_none() -> None:
