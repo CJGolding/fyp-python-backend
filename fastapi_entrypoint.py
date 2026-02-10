@@ -1,7 +1,6 @@
 import asyncio
 import logging
 from typing import Literal, Optional
-
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
@@ -81,7 +80,7 @@ class StopResponse(BaseModel):
 
 
 @app.post("/init", response_model=InitResponse)
-async def initialise_matchmaking(request: InitRequest):
+async def initialise_matchmaking(request: InitRequest) -> InitResponse:
     """
     Initialise a matchmaking session with the specified configuration parameters.
     Creates an instance of the appropriate GameManager based on the request and stores it in a dictionary using a unique session ID.
@@ -132,12 +131,12 @@ async def initialise_matchmaking(request: InitRequest):
         raise HTTPException(status_code=500, detail=f"Failed to initialise matchmaking system: {str(e)}")
 
 
-@app.post("/insertion")
-async def insert_players(request: ManualInsertionRequest | AutomaticInsertionRequest):
+@app.post("/insert")
+async def insert_players(request: ManualInsertionRequest | AutomaticInsertionRequest) -> dict[str, str | int]:
     """
     Insert players manually (single) or automatically (batch) into the matchmaking system based on the request parameters.
     :param request: ManualInsertionRequest for single player insertion or AutomaticInsertionRequest for batch insertion.
-    :return: JSON response indicating the status of the insertion operation
+    :return: JSON response indicating the status of the insertion operation.
     """
     try:
         if request.sessionId not in game_managers:
@@ -146,12 +145,10 @@ async def insert_players(request: ManualInsertionRequest | AutomaticInsertionReq
         game_manager = game_managers[request.sessionId]
 
         if request.mode == "Manual":
-            # Start the thread and wait for it to complete
             thread = game_manager.insert_player_manually_async(int(request.skill))
             await asyncio.to_thread(thread.join)
             return {"status": "completed", "mode": "manual", "sessionId": request.sessionId}
         else:
-            # Start the thread and wait for it to complete
             thread = game_manager.insert_players_automatically_async(
                 request.numPlayers,
                 int(request.mean),
@@ -171,8 +168,8 @@ async def insert_players(request: ManualInsertionRequest | AutomaticInsertionReq
         raise HTTPException(status_code=500, detail=f"Failed to insert players: {str(e)}")
 
 
-@app.post("/create_match")
-async def create_match(request: CreateMatchRequest):
+@app.post("/create")
+async def create_match(request: CreateMatchRequest) -> dict[str, str]:
     """
     Trigger the matchmaking process to create matches based on the current state of the player queue and game heap.
     :param request: CreateMatchRequest containing the session ID for which to create matches.
@@ -196,7 +193,7 @@ async def create_match(request: CreateMatchRequest):
 
 
 @app.post("/stop", response_model=StopResponse)
-async def stop_session(request: StopRequest):
+async def stop_session(request: StopRequest) -> StopResponse:
     """
     Stop the matchmaking session and retrieve statistics about the matchmaking process.
     :param request: StopRequest containing the session ID for which to stop the session and retrieve statistics.
@@ -207,9 +204,7 @@ async def stop_session(request: StopRequest):
             raise HTTPException(status_code=404, detail="Session not found")
 
         game_manager = game_managers[request.sessionId]
-
-        if not game_manager.recorder:
-            raise HTTPException(status_code=400, detail="Recording not enabled for this session")
+        game_manager.cancel()
 
         stats = game_manager.recorder.get_stats()
 
@@ -231,7 +226,14 @@ async def stop_session(request: StopRequest):
 
 
 @app.websocket("/ws/{session_id}")
-async def websocket_endpoint(websocket: WebSocket, session_id: str):
+async def websocket_endpoint(websocket: WebSocket, session_id: str) -> None:
+    """
+    WebSocket endpoint for real-time streaming of matchmaking steps to the frontend, improving responsiveness and user experience.
+    The endpoint accepts a WebSocket connection, verifies the session ID, and continuously sends new matchmaking steps as they are recorded by the GameManager's Recorder.
+    It handles disconnections and errors gracefully, ensuring that resources are cleaned up appropriately when a client disconnects or an error occurs.
+    :param websocket: The WebSocket connection for real-time communication with the frontend.
+    :param session_id: The unique session ID associated with the GameManager object.
+    """
     await websocket.accept()
 
     if session_id not in game_managers:
@@ -253,7 +255,7 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
             await websocket.send_json({"steps": all_steps})
             websocket_step_indices[session_id] = len(all_steps)
         else:
-            LOG.info(f"No initial steps to send")
+            LOG.info("No initial steps to send")
 
         while True:
             all_steps = game_manager.recorder.get_steps()
@@ -269,13 +271,12 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
 
     except WebSocketDisconnect:
         LOG.warning(f"Disconnected session '{session_id}' at index '{websocket_step_indices.get(session_id)}'")
-        if session_id in websocket_step_indices:
-            del websocket_step_indices[session_id]
     except Exception as e:
         LOG.error(f"Error for session '{session_id}': {e}")
+        await websocket.close()
+    finally:
         if session_id in websocket_step_indices:
             del websocket_step_indices[session_id]
-        await websocket.close()
 
 
 if __name__ == "__main__":

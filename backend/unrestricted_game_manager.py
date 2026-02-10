@@ -53,6 +53,7 @@ class UnrestrictedGameManager:
         self.recorder: Optional[Recorder] = Recorder() if is_recording else None
         self._current_thread: Optional[Thread] = None
         self._session_id: str = str(uuid4())
+        self._cancelled: bool = False
         self._record()
         LOG.info(f"Created {self.__class__.__name__}: {self}")
 
@@ -76,6 +77,10 @@ class UnrestrictedGameManager:
         if not criteria(value):
             raise ValueError(f"Invalid player for {name}: {value}. Must be {requirements}.")
         return value
+
+    def cancel(self):
+        self._cancelled = True
+        LOG.info(f"Cancelled matchmaking operations for session {self._session_id}.")
 
     def _record(self, **kwargs) -> None:
         """Record the current state of the matchmaking process if recording is enabled."""
@@ -124,6 +129,8 @@ class UnrestrictedGameManager:
         start = time.perf_counter()
 
         for remaining_players in combinations(visible_players, self.required_players):
+            if self._cancelled:
+                return None
             elapsed = time.perf_counter() - start
             if elapsed > _EXECUTION_TIMEOUT_SECONDS:
                 LOG.warning(
@@ -273,6 +280,8 @@ class UnrestrictedGameManager:
         :param affected_players: SortedSet of Player instances whose candidate games need to be updated.
         """
         for player in SortedSet(affected_players):
+            if self._cancelled:
+                return
             best_game: Optional[CandidateGame] = self._calculate_best_game_including_player(player)
             if best_game:
                 self._record(queue_action=QueueActions.GAME_FOUND,
