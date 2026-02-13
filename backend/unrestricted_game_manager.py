@@ -298,6 +298,8 @@ class UnrestrictedGameManager:
                                  heap_action=HeapActions.REMOVE
                                  )
                     self.candidate_games.remove(player.id)
+                else:
+                    self._record(queue_action=QueueActions.GAME_NOT_FOUND)
 
     def _query_best_game(self) -> Optional[CandidateGame]:
         """
