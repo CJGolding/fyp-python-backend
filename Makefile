@@ -1,5 +1,5 @@
 SHELL := /bin/bash
-folder_name = fyp-python-source
+folder_name = fyp-python-backend
 docker_image_name = $(folder_name)
 docker_container_name = $(folder_name)-container
 
