@@ -7,7 +7,7 @@ from threading import Thread
 from typing import Optional
 from uuid import uuid4
 
-from backend._clock import reset as reset_clock
+import backend.clock as clock
 from backend.candidate_game import CandidateGame
 from backend.min_heap import MinHeap
 from backend.player import Player
@@ -36,7 +36,7 @@ class UnrestrictedGameManager:
         :param is_recording: Flag to enable or disable recording of the matchmaking process.
         :param approximate: Flag to enable or disable greedy approximation in matchmaking.
         """
-        reset_clock()
+        clock.reset()
         self.team_size: int = self.validate_config(team_size, lambda x: 1 <= x <= 5, "team_size", "1 <= x <= 5")
         self.p_norm: float = self.validate_config(p_norm, lambda x: 1 <= x <= 10, "p_norm", "1 <= x <= 10")
         self.q_norm: float = self.validate_config(q_norm, lambda x: 1 <= x <= 10, "q_norm", "1 <= x <= 10")

@@ -1,6 +1,6 @@
 from typing import Optional
 
-from backend._clock import now
+import backend.clock as clock
 from common.types import Number
 
 
@@ -13,7 +13,7 @@ class Player:
         """
         self.id: int = player_id
         self.skill: int = skill
-        self.enqueue_time: float = now()
+        self.enqueue_time: float = clock.now()
         self.dequeue_time: Optional[float] = None
 
     def to_dict(self) -> dict[str, Number]:
@@ -33,12 +33,13 @@ class Player:
         :return: The wait time in seconds.
         """
         if self.dequeue_time is None:
-            return now() - self.enqueue_time
+            return clock.now() - self.enqueue_time
         return self.dequeue_time - self.enqueue_time
 
     def mark_as_exited(self) -> None:
         """Mark the player as having exited the queue by setting the dequeue time to the current time."""
-        self.dequeue_time = now()
+        if self.dequeue_time is None:
+            self.dequeue_time = clock.now()
 
     def __lt__(self, other: "Player") -> bool:
         """Less-than comparison based on skill level, then by ID for consistent tie-breaking."""

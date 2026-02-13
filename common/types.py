@@ -17,7 +17,6 @@ if TYPE_CHECKING:
     from backend.unrestricted_game_manager import UnrestrictedGameManager as _UnrestrictedGameManager
     from backend.time_sensitive_game_manager import TimeSensitiveGameManager as _TimeSensitiveGameManager
 
-
 # Primitive types
 type Number = int | float
 
@@ -41,7 +40,8 @@ type RecordedPlayer = dict[str, Number]
 type RecordedTeam = set[int]
 type RecordedGame = int
 type RecordedState = list[dict[str, Number]]
-type RecordedSnapshot = dict[str, RecordedState | RecordedWindow | RecordedPlayerIndex | RecordedTeam | RecordedGame | str]
+type RecordedSnapshot = dict[
+    str, RecordedState | RecordedWindow | RecordedPlayerIndex | RecordedTeam | RecordedGame | str]
 type RecordedStep = dict[str, RecordedSnapshot]
 type RecordedStatistic = list[Number]
 type RecordedParameters = dict[str, str | Number]

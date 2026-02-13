@@ -5,8 +5,7 @@ from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from backend.time_sensitive_game_manager import TimeSensitiveGameManager
-from backend.unrestricted_game_manager import UnrestrictedGameManager
+from backend import TimeSensitiveGameManager, UnrestrictedGameManager
 from common import init_logger
 from common.types import GameManager
 

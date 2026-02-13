@@ -207,10 +207,10 @@ class SortedSet:
             if key < 0:
                 key += len(self)
             if key < 0 or key >= len(self):
-                raise IndexError("AVLTree index out of range")
+                raise IndexError("SortedSet index out of range")
             return self.__get_by_index(key)
         else:
-            raise TypeError(f"indices must be integers or slices, not {type(key).__name__}")
+            raise TypeError(f"Indices must be integers or slices, not {type(key).__name__}")
 
     def __iter__(self) -> Iterator[Player]:
         """

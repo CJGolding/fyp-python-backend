@@ -41,5 +41,5 @@ class CandidateGame:
         return self.imbalance < other.imbalance
 
     def __str__(self) -> str:
-        priority_string: str = f", g: {self.priority})" if self.priority is not None else ""
+        priority_string: str = f", g: {self.priority}" if self.priority is not None else ""
         return f"CandidateGame(Anchor Player ID: {self.anchor_player.id}, Team X: {[p.id for p in self.team_x]}, Team Y: {[p.id for p in self.team_y]}, f: {self.imbalance}{priority_string})"

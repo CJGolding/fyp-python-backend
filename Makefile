@@ -1,5 +1,7 @@
 SHELL := /bin/bash
-folder_name =$(shell basename $(shell pwd))
+folder_name = fyp-python-source
+docker_image_name = $(folder_name)
+docker_container_name = $(folder_name)-container
 
 .PHONY: init
 init:
@@ -17,7 +19,7 @@ requirements-all: requirements
 
 .PHONY: lint
 lint:
-	. .venv/bin/activate && pip install pylint && pylint --max-line-length=120 --fail-under=8 \
+	. .venv/bin/activate && pylint --max-line-length=120 --fail-under=8 \
 	./backend/*.py \
 	./*.py
 
@@ -32,3 +34,21 @@ run-cli:
 .PHONY: run-fastapi
 run-fastapi:
 	. .venv/bin/activate && uvicorn fastapi_entrypoint:app
+
+.PHONY: docker-clean
+docker-clean:
+	-docker stop $(docker_container_name) 2>/dev/null || true
+	-docker rm $(docker_container_name) 2>/dev/null || true
+	-docker rmi $(docker_image_name) 2>/dev/null || true
+
+.PHONY: docker-build
+docker-build:
+	docker build -t $(docker_image_name) .
+
+.PHONY: docker-run
+docker-run: docker-clean docker-build
+	docker run -d -p 8000:8000 --name $(docker_container_name) $(docker_image_name)
+	@echo "Docker container '$(docker_container_name)' is running on http://localhost:8000"
+	@echo "View logs with: docker logs -f $(docker_container_name)"
+	@echo "Stop with: docker stop $(docker_container_name)"
+

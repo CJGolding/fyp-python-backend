@@ -2,8 +2,7 @@ import logging
 
 from InquirerPy import inquirer
 
-from backend.time_sensitive_game_manager import TimeSensitiveGameManager
-from backend.unrestricted_game_manager import UnrestrictedGameManager
+from backend import TimeSensitiveGameManager, UnrestrictedGameManager
 from common import init_logger
 
 init_logger()
