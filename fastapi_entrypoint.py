@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 from backend import TimeSensitiveGameManager, UnrestrictedGameManager
 from common import init_logger
 from common.types import GameManager
-# test after rename
+
 init_logger()
 
 LOG: logging.Logger = logging.getLogger(__name__)
