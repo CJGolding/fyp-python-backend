@@ -7,7 +7,7 @@ from threading import Thread
 from typing import Optional
 from uuid import uuid4
 
-import backend.clock as clock
+from backend import clock
 from backend.candidate_game import CandidateGame
 from backend.min_heap import MinHeap
 from backend.player import Player

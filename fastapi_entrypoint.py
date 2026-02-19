@@ -49,13 +49,11 @@ class InitResponse(BaseModel):
 
 class ManualInsertionRequest(BaseModel):
     sessionId: str
-    mode: Literal["Manual"]
     skill: float = Field(..., ge=0, le=5000)
 
 
 class AutomaticInsertionRequest(BaseModel):
     sessionId: str
-    mode: Literal["Automatic"]
     numPlayers: int = Field(..., ge=1, le=100)
     mean: float = Field(..., ge=0, le=5000)
     stdDev: float = Field(..., ge=0, le=1000)
@@ -71,11 +69,11 @@ class StopRequest(BaseModel):
 
 class StopResponse(BaseModel):
     sessionId: str
-    queueSize: list[float]
-    heapSize: list[float]
-    maxWaitTime: list[float]
+    queueSize: list[int]
+    heapSize: list[int]
+    maxWaitTime: list[Optional[float]]
     minPriority: list[Optional[float]]
-    minImbalance: list[float]
+    minImbalance: list[Optional[float]]
 
 
 @app.post("/init", response_model=InitResponse)
@@ -130,8 +128,8 @@ async def initialise_matchmaking(request: InitRequest) -> InitResponse:
         raise HTTPException(status_code=500, detail=f"Failed to initialise matchmaking system: {str(e)}")
 
 
-@app.post("/insert")
-async def insert_players(request: ManualInsertionRequest | AutomaticInsertionRequest) -> dict[str, str | int]:
+@app.post("/insert_manually")
+async def insert_player_manually(request: ManualInsertionRequest) -> dict[str, str | int]:
     """
     Insert players manually (single) or automatically (batch) into the matchmaking system based on the request parameters.
     :param request: ManualInsertionRequest for single player insertion or AutomaticInsertionRequest for batch insertion.
@@ -143,28 +141,49 @@ async def insert_players(request: ManualInsertionRequest | AutomaticInsertionReq
 
         game_manager = game_managers[request.sessionId]
 
-        if request.mode == "Manual":
-            thread = game_manager.insert_player_manually_async(int(request.skill))
-            await asyncio.to_thread(thread.join)
-            return {"status": "completed", "mode": "manual", "sessionId": request.sessionId}
-        else:
-            thread = game_manager.insert_players_automatically_async(
-                request.numPlayers,
-                int(request.mean),
-                int(request.stdDev)
-            )
-            await asyncio.to_thread(thread.join)
-            return {
-                "status": "completed",
-                "mode": "automatic",
-                "sessionId": request.sessionId,
-                "numPlayers": request.numPlayers
-            }
+        thread = game_manager.insert_player_manually_async(int(request.skill))
+        await asyncio.to_thread(thread.join)
+        return {
+            "status": "completed",
+            "mode": "manual",
+            "sessionId": request.sessionId
+        }
 
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to insert players: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to manually insert player: {str(e)}")
+
+@app.post("/insert_automatically")
+async def insert_players_automatically(request: AutomaticInsertionRequest) -> dict[str, str | int]:
+    """
+    Insert players manually (single) or automatically (batch) into the matchmaking system based on the request parameters.
+    :param request: ManualInsertionRequest for single player insertion or AutomaticInsertionRequest for batch insertion.
+    :return: JSON response indicating the status of the insertion operation.
+    """
+    try:
+        if request.sessionId not in game_managers:
+            raise HTTPException(status_code=404, detail="Session not found")
+
+        game_manager = game_managers[request.sessionId]
+
+        thread = game_manager.insert_players_automatically_async(
+            request.numPlayers,
+            int(request.mean),
+            int(request.stdDev)
+        )
+        await asyncio.to_thread(thread.join)
+        return {
+            "status": "completed",
+            "mode": "automatic",
+            "sessionId": request.sessionId,
+            "numPlayers": request.numPlayers
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to insert players automatically: {str(e)}")
 
 
 @app.post("/create")

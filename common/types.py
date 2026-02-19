@@ -1,7 +1,7 @@
 """Common type definitions used across the project."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING, Callable, Optional
 
 if TYPE_CHECKING:
     from backend.player import Player as _Player
@@ -37,13 +37,13 @@ type RecordedWindow = list[int]
 type RecordedPlayerIndex = int
 type RecordedOrder = list[int]
 type RecordedPlayer = dict[str, Number]
-type RecordedTeam = set[int]
+type RecordedTeam = list[int]
 type RecordedGame = int
 type RecordedState = list[dict[str, Number]]
 type RecordedSnapshot = dict[
     str, RecordedState | RecordedWindow | RecordedPlayerIndex | RecordedTeam | RecordedGame | str]
 type RecordedStep = dict[str, RecordedSnapshot]
-type RecordedStatistic = list[Number]
+type RecordedStatistic = list[Optional[Number]]
 type RecordedParameters = dict[str, str | Number]
 
 # Backend logic types

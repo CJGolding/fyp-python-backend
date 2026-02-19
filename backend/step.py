@@ -33,8 +33,8 @@ class Step:
             add=add_player.to_dict() if add_player else None,
             window=window,
             target_index=target_player,
-            team_x=team_x,
-            team_y=team_y,
+            team_x=list(team_x or []),
+            team_y=list(team_y or []),
             action=queue_action
         )
         self.heap_snapshot: HeapSnapshot = HeapSnapshot(

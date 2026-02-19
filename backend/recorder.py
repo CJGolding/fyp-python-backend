@@ -8,6 +8,7 @@ class Recorder:
     def __init__(self) -> None:
         """Recorder for tracking the state of the matchmaking queue, candidate games and created matches over time."""
         self.steps: list[Step] = []
+        self.current_step_index: int = 0
         self.queue_size: RecordedStatistic = []
         self.heap_size: RecordedStatistic = []
         self.max_wait_time: RecordedStatistic = []
@@ -31,10 +32,6 @@ class Recorder:
                 "min_imbalance": self.min_imbalance.copy()
             }
 
-    def __clear(self) -> None:
-        """Internal method to clear all recorded steps ready for the next recording session."""
-        self.steps = []
-
     def record_step(self, **kwargs) -> None:
         """
         Asynchronously record a new step with the optional parameter to control the clearing of previous steps.
@@ -46,8 +43,9 @@ class Recorder:
             self.steps.append(step)
             self.queue_size.append(len(step.queue_snapshot.state))
             self.heap_size.append(len(step.heap_snapshot.state))
-            self.max_wait_time.append(
-                max([player["wait_time"] for player in step.queue_snapshot.state]) if step.queue_snapshot.state else 0)
+            max_wait_time: float = max(player["wait_time"] for player in step.queue_snapshot.state) if step.queue_snapshot.state else None
+            self.max_wait_time.append(max_wait_time)
             heap_top = step.heap_snapshot.state[0] if step.heap_snapshot.state else {}
-            self.min_priority.append(heap_top.get("priority", 0))
-            self.min_imbalance.append(heap_top.get("imbalance", 0))
+            self.min_priority.append(heap_top.get("priority"))
+            self.min_imbalance.append(heap_top.get("imbalance"))
+            self.current_step_index += 1

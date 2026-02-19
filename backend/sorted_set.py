@@ -67,8 +67,8 @@ class SortedSet:
                 return helper(node.left, idx)
             elif idx == left_size:
                 return node.player
-            else:
-                return helper(node.right, idx - left_size - 1)
+
+            return helper(node.right, idx - left_size - 1)
 
         return helper(self.__root, index)
 
