@@ -59,6 +59,11 @@ class AutomaticInsertionRequest(BaseModel):
     stdDev: float = Field(..., ge=0, le=1000)
 
 
+class ActionResponse(BaseModel):
+    sessionId: str
+    status: str
+
+
 class CreateMatchRequest(BaseModel):
     sessionId: str
 
@@ -129,7 +134,7 @@ async def initialise_matchmaking(request: InitRequest) -> InitResponse:
 
 
 @app.post("/insert_manually")
-async def insert_player_manually(request: ManualInsertionRequest) -> dict[str, str | int]:
+async def insert_player_manually(request: ManualInsertionRequest) -> ActionResponse:
     """
     Insert players manually (single) or automatically (batch) into the matchmaking system based on the request parameters.
     :param request: ManualInsertionRequest for single player insertion or AutomaticInsertionRequest for batch insertion.
@@ -143,11 +148,11 @@ async def insert_player_manually(request: ManualInsertionRequest) -> dict[str, s
 
         thread = game_manager.insert_player_manually_async(int(request.skill))
         await asyncio.to_thread(thread.join)
-        return {
-            "status": "completed",
-            "mode": "manual",
-            "sessionId": request.sessionId
-        }
+
+        return ActionResponse(
+            sessionId=request.sessionId,
+            status="completed",
+        )
 
     except HTTPException:
         raise
@@ -155,7 +160,7 @@ async def insert_player_manually(request: ManualInsertionRequest) -> dict[str, s
         raise HTTPException(status_code=500, detail=f"Failed to manually insert player: {str(e)}")
 
 @app.post("/insert_automatically")
-async def insert_players_automatically(request: AutomaticInsertionRequest) -> dict[str, str | int]:
+async def insert_players_automatically(request: AutomaticInsertionRequest) -> ActionResponse:
     """
     Insert players manually (single) or automatically (batch) into the matchmaking system based on the request parameters.
     :param request: ManualInsertionRequest for single player insertion or AutomaticInsertionRequest for batch insertion.
@@ -173,12 +178,11 @@ async def insert_players_automatically(request: AutomaticInsertionRequest) -> di
             int(request.stdDev)
         )
         await asyncio.to_thread(thread.join)
-        return {
-            "status": "completed",
-            "mode": "automatic",
-            "sessionId": request.sessionId,
-            "numPlayers": request.numPlayers
-        }
+
+        return ActionResponse(
+            sessionId=request.sessionId,
+            status="completed",
+        )
 
     except HTTPException:
         raise
@@ -187,7 +191,7 @@ async def insert_players_automatically(request: AutomaticInsertionRequest) -> di
 
 
 @app.post("/create")
-async def create_match(request: CreateMatchRequest) -> dict[str, str]:
+async def create_match(request: CreateMatchRequest) -> ActionResponse:
     """
     Trigger the matchmaking process to create matches based on the current state of the player queue and game heap.
     :param request: CreateMatchRequest containing the session ID for which to create matches.
@@ -202,7 +206,10 @@ async def create_match(request: CreateMatchRequest) -> dict[str, str]:
         thread = game_manager.create_match_async()
         await asyncio.to_thread(thread.join)
 
-        return {"status": "completed", "sessionId": request.sessionId}
+        return ActionResponse(
+            sessionId=request.sessionId,
+            status="completed",
+        )
 
     except HTTPException:
         raise
