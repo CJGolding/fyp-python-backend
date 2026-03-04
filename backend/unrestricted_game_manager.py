@@ -5,7 +5,6 @@ import time
 from itertools import combinations, count
 from threading import Thread
 from typing import Optional
-from uuid import uuid4
 
 from backend import clock
 from backend.candidate_game import CandidateGame
@@ -14,9 +13,8 @@ from backend.player import Player
 from backend.recorder import Recorder
 from backend.sorted_set import SortedSet
 from common.actions import QueueActions, HeapActions
-from common.functions import p_fairness
 from common.types import (Number, RecordedParameters, LambdaFunction, AsynchronousFunction, CreatedMatch,
-                          AffectedPlayers, GamePlayers, PartitionFunction, BestCandidateResult)
+                          AffectedPlayers, GamePlayers, PartitionFunction)
 
 LOG: logging.Logger = logging.getLogger(__name__)
 
@@ -42,8 +40,9 @@ class UnrestrictedGameManager:
         self.q_norm: float = self.validate_config(q_norm, lambda x: 1 <= x <= 10, "q_norm", "1 <= x <= 10")
         self.fairness_weight: float = self.validate_config(fairness_weight, lambda x: 0 < x <= 10, "fairness_weight",
                                                            "0 < x <= 10")
-        self.skill_window: int = math.ceil(4 * (1 + fairness_weight) * team_size ** (1 + (1 / q_norm)))
         self.required_players: int = (2 * self.team_size) - 1
+        self.skill_window: int = self.required_players if approximate else math.ceil(
+            4 * (1 + fairness_weight) * team_size ** (1 + (1 / q_norm)))
         self.players: SortedSet = SortedSet()
         self.candidate_games: MinHeap = MinHeap()
         self.created_matches: list[CreatedMatch] = []
@@ -52,8 +51,7 @@ class UnrestrictedGameManager:
         self._partition_solver: PartitionFunction = self._greedy_balanced_partition if approximate else self._brute_force_partition
         self.recorder: Optional[Recorder] = Recorder() if is_recording else None
         self._current_thread: Optional[Thread] = None
-        self._session_id: str = str(uuid4())
-        self._cancelled: bool = False
+        self._is_cancelled: bool = False
         self._record()
         LOG.info(f"Created {self.__class__.__name__}: {self}")
 
@@ -61,9 +59,8 @@ class UnrestrictedGameManager:
         return f"Team Size: {self.team_size}, P: {self.p_norm}, Q: {self.q_norm}, α: {self.fairness_weight}, Window: {self.skill_window}"
 
     def get_parameters(self) -> RecordedParameters:
-        """Get the configuration parameters of the UnrestrictedGameManager for frontend (deprecated) state management."""
+        """Get the configuration parameters of the UnrestrictedGameManager for frontend state management."""
         return {
-            "session_id": self._session_id,
             "team_size": self.team_size,
             "p_norm": self.p_norm,
             "q_norm": self.q_norm,
@@ -78,9 +75,9 @@ class UnrestrictedGameManager:
             raise ValueError(f"Invalid player for {name}: {value}. Must be {requirements}.")
         return value
 
-    def cancel(self):
-        self._cancelled = True
-        LOG.info(f"Cancelled matchmaking operations for session {self._session_id}.")
+    def cancel_matchmaking(self, session_id: str) -> None:
+        self._is_cancelled = True
+        LOG.info(f"Cancelled matchmaking operations for session {session_id}.")
 
     def _record(self, **kwargs) -> None:
         """Record the current state of the matchmaking process if recording is enabled."""
@@ -90,117 +87,116 @@ class UnrestrictedGameManager:
                                       heap_state=self.candidate_games,
                                       )
 
-    def _create_candidate_game(self, player: Player, team_x: set[Player], team_y: set[Player]) -> CandidateGame:
+    def _construct_candidate_game(self, anchor_player: Player, team_x: set[Player],
+                                  team_y: set[Player]) -> CandidateGame:
         """
         Create a CandidateGame instance given two teams and an anchor player.
-        :param player: The anchor player for the candidate game (p_i).
+        :param anchor_player: The anchor player for the candidate game (p_i).
         :param team_x: Set of players in team X (X_i).
         :param team_y: Set of players in team Y (Y_i).
         :return: A CandidateGame instance representing the candidate game (X_i, Y_i).
         """
-        return CandidateGame(player, team_x, team_y, self.p_norm, self.q_norm, self.fairness_weight)
+        return CandidateGame(anchor_player, team_x, team_y, self.p_norm, self.q_norm, self.fairness_weight)
 
-    def _calculate_best_game_including_player(self, player: Player) -> Optional[
-        CandidateGame]:
+    def _calculate_best_game(self, anchor_player: Player) -> Optional[CandidateGame]:
         """
-        Calculate the best candidate game that includes the specified player.
-        It involves generating all possible combinations of players within a skill window and evaluating them.
-        This guarantees that the game with the lowest imbalance (or priority) is found.
+        Calculate the best or near-best candidate game that includes the specified player. It will dynamically call the
+        exact brute force solver, or the more efficient approximate greedy solver, depending on what was chosen during
+        initialisation.
         Time Complexity: k^O(k) where k is the team size.
-        :param player: The Player instance to include in the candidate game (p_i).
+        :param anchor_player: The Player instance to include in the candidate game (p_i).
         :return: The best CandidateGame instance including the player (X_i, Y_i), or None if no valid game exists.
         """
-        if player not in self.players:
+        if anchor_player not in self.players:
             return None
 
-        player_index: int = self.players.index(player)
+        player_index: int = self.players.index(anchor_player)
         window_start_index: int = player_index + 1
         window_end_index: int = min(len(self.players), window_start_index + self.skill_window)
-        visible_players: list[Player] = self.players[window_start_index: window_end_index]
+        visible_players: GamePlayers = set(self.players[window_start_index: window_end_index])
         self._record(target_player=player_index, queue_action=QueueActions.ANCHOR,
                      window=list(range(window_start_index, window_end_index)))
 
         if len(visible_players) < self.required_players:
             return None
 
+        return self._partition_solver(anchor_player, visible_players)
+
+    def _brute_force_partition(self, anchor_player: Player, visible_players: GamePlayers) -> Optional[CandidateGame]:
+        """
+        Calculate the best candidate game that includes the specified player.
+        It involves generating all possible combinations of players within a skill window and evaluating them.
+        This guarantees that the game with the lowest imbalance (or priority) is found.
+        Time Complexity: k^O(k) where k is the team size.
+        :param anchor_player: The Player instance to include in the candidate game (p_i).
+        :return: The best CandidateGame instance including the player (X_i, Y_i), or None if no valid game exists.
+        """
         best_game: Optional[CandidateGame] = None
         min_game_val: float = float('inf')
         total_num_enumerations: int = 0
         start = time.perf_counter()
-
         for remaining_players in combinations(visible_players, self.required_players):
-            if self._cancelled:
+            if self._is_cancelled:
                 return None
             elapsed = time.perf_counter() - start
             if elapsed > _EXECUTION_TIMEOUT_SECONDS:
                 LOG.warning(
-                    f"Timeout reached, prematurely ending search for best game for Player {player.id}.")
+                    f"Timeout reached, prematurely ending search for best game for Player {anchor_player.id}.")
                 break
             if min_game_val == 0:
-                LOG.info(f"Perfect game found for Player {player.id} with imbalance 0, breaking early.")
+                LOG.info(f"Perfect game found for Player {anchor_player.id} with imbalance 0, breaking early.")
                 break
-            game, curr_game_val, num_enumerations = self._partition_solver(player, set(remaining_players))
-            total_num_enumerations += num_enumerations
-            if curr_game_val < min_game_val:
-                min_game_val = curr_game_val
-                best_game = game
+            for team_x_others in combinations(remaining_players, self.team_size - 1):
+                total_num_enumerations += 1
+                team_x_players: set[Player] = set(team_x_others) | {anchor_player}
+                team_y_players: set[Player] = set(remaining_players) - team_x_players
+                game: CandidateGame = self._construct_candidate_game(anchor_player, team_x_players, team_y_players)
+                curr_game_val: float = getattr(game, self._match_quality_metric)
+                if curr_game_val < min_game_val:
+                    min_game_val = curr_game_val
+                    best_game = game
 
-        LOG.info(f"Checked {total_num_enumerations} candidate games for Player {player.id}.")
+        LOG.info(f"Checked {total_num_enumerations} candidate games for Player {anchor_player.id}.")
 
         return best_game
 
-    def _brute_force_partition(self, anchor_player: Player, remaining_players: GamePlayers) -> BestCandidateResult:
+    def _greedy_balanced_partition(self, anchor_player: Player, visible_players: GamePlayers) -> Optional[
+        CandidateGame]:
         """
-        Find the best candidate game including the anchor player using brute-force enumeration of all team combinations.
-        Time Complexity: 2^O(k) where k is the team size.
-        :param anchor_player: The anchor Player instance to include in the candidate game (p_i).
-        :param remaining_players: Set of remaining Player instances to partition into teams.
-        :return: A tuple containing the CandidateGame instance (X_i, Y_i), its imbalance (f) or priority (g) player, and the number of enumerations.
-        """
-        best_game: Optional[CandidateGame] = None
-        min_game_val: float = float('inf')
-        num_enumerated: int = 0
-
-        for team_x_others in combinations(remaining_players, self.team_size - 1):
-            num_enumerated += 1
-            team_x_players: set[Player] = set(team_x_others) | {anchor_player}
-            team_y_players: set[Player] = remaining_players - team_x_players
-            game: CandidateGame = self._create_candidate_game(anchor_player, team_x_players, team_y_players)
-            curr_game_val: float = getattr(game, self._match_quality_metric)
-            if curr_game_val < min_game_val:
-                min_game_val = curr_game_val
-                best_game = game
-            if min_game_val == 0:
-                break
-        return best_game, min_game_val, num_enumerated
-
-    def _greedy_balanced_partition(self, anchor_player: Player, remaining_players: GamePlayers) -> BestCandidateResult:
-        """
-        Approximate the best candidate game including the anchor player using a greedy balanced partitioning algorithm.
+        Approximate the best candidate game including the anchor player using the greedy algorithm from Lemma 5. The 2k
+        players are sorted by skill ascending and paired consecutively into k pairs. For each pair (smaller, bigger),
+        the bigger is assigned to whichever team currently has the smaller p-norm sum, and the smaller to the other.
+        This guarantees d_p(X, Y) ≤ max - min, which in turn gives the ρ = 2k^(1/q)(1 + α) approximation bound via
+        Lemmas 5 and 6.
         Time Complexity: O(k log k) where k is the team size.
         :param anchor_player: The anchor Player instance to include in the candidate game (p_i).
-        :param remaining_players: Set of remaining Player instances to partition into teams.
-        :return: A tuple containing the CandidateGame instance (X_i, Y_i), its imbalance (f) or priority (g) player, and the number of enumerations (1).
+        :param visible_players: Set of remaining Player instances to partition into teams.
+        :return: A tuple containing the CandidateGame instance (X_i, Y_i), its imbalance (f) or priority (g), and 1.
         """
-        game_players: SortedSet = SortedSet({anchor_player} | remaining_players)
-        sorted_game_players: list[Player] = sorted(game_players, reverse=True)
+        sorted_players: SortedSet = SortedSet({anchor_player} | visible_players)
         team_x: GamePlayers = set()
         team_y: GamePlayers = set()
+        sum_x_p: float = 0.0
+        sum_y_p: float = 0.0
 
-        for player in sorted_game_players:
-            if len(team_x) < self.team_size and len(team_y) < self.team_size:
-                if p_fairness(team_x | {player}, team_y, self.p_norm) <= p_fairness(team_x, team_y | {player},
-                                                                                    self.p_norm):
-                    team_x.add(player)
-                else:
-                    team_y.add(player)
-            elif len(team_x) < self.team_size:
-                team_x.add(player)
+        for i in range(0, 2 * self.team_size, 2):
+            smaller, bigger = sorted_players[i], sorted_players[i + 1]
+            if sum_x_p <= sum_y_p:
+                team_x.add(bigger)
+                team_y.add(smaller)
+                sum_x_p += bigger.skill ** self.p_norm
+                sum_y_p += smaller.skill ** self.p_norm
             else:
-                team_y.add(player)
+                team_y.add(bigger)
+                team_x.add(smaller)
+                sum_y_p += bigger.skill ** self.p_norm
+                sum_x_p += smaller.skill ** self.p_norm
 
-        game: CandidateGame = self._create_candidate_game(anchor_player, team_x, team_y)
-        return game, getattr(game, self._match_quality_metric), 1
+        best_game: CandidateGame = self._construct_candidate_game(anchor_player, team_x, team_y)
+
+        LOG.info(f"Found approximate best game for Player {anchor_player.id}.")
+
+        return best_game
 
     def _insert_player(self, player: Player, bulk: bool = False) -> AffectedPlayers:
         """
@@ -216,7 +212,7 @@ class UnrestrictedGameManager:
         affected_players: AffectedPlayers = set(self.players[max(0, player_index - self.skill_window): player_index])
 
         if not bulk:
-            best_game: Optional[CandidateGame] = self._calculate_best_game_including_player(player)
+            best_game: Optional[CandidateGame] = self._calculate_best_game(player)
             if best_game:
                 self._record(queue_action=QueueActions.GAME_FOUND,
                              team_x={self.players.index(p) for p in best_game.team_x},
@@ -226,7 +222,7 @@ class UnrestrictedGameManager:
                              heap_action=HeapActions.INSERT)
             else:
                 self._record(queue_action=QueueActions.GAME_NOT_FOUND)
-            self._update_candidate_games_for_list(affected_players)
+            self._update_candidate_games_for_players(affected_players)
 
         return affected_players
 
@@ -239,7 +235,7 @@ class UnrestrictedGameManager:
             LOG.info(f"Adding player {player.id} to the queue.")
             affected_players = affected_players | self._insert_player(player, True)
             LOG.info(f"Total affected players after inserting player {player.id}: {len(affected_players)}")
-        self._update_candidate_games_for_list(affected_players)
+        self._update_candidate_games_for_players(affected_players)
 
     def _remove_player(self, player: Player, bulk: bool = False) -> AffectedPlayers:
         """
@@ -260,7 +256,7 @@ class UnrestrictedGameManager:
                 self.candidate_games.remove(player.id)
             else:
                 self._record()
-            self._update_candidate_games_for_list(affected_players)
+            self._update_candidate_games_for_players(affected_players)
         return affected_players
 
     def _remove_players(self, affected_players: AffectedPlayers) -> None:
@@ -272,17 +268,17 @@ class UnrestrictedGameManager:
             LOG.info(f"Removing player {player.id} from the queue.")
             affected_players = affected_players | self._remove_player(player, True)
             LOG.info(f"Total affected players after removing player {player.id}: {len(affected_players)}")
-        self._update_candidate_games_for_list(affected_players)
+        self._update_candidate_games_for_players(affected_players)
 
-    def _update_candidate_games_for_list(self, affected_players: AffectedPlayers) -> None:
+    def _update_candidate_games_for_players(self, affected_players: AffectedPlayers) -> None:
         """
         Internal method to update candidate games for a list of affected players after an insertion or removal.
         :param affected_players: SortedSet of Player instances whose candidate games need to be updated.
         """
         for player in SortedSet(affected_players):
-            if self._cancelled:
+            if self._is_cancelled:
                 return
-            best_game: Optional[CandidateGame] = self._calculate_best_game_including_player(player)
+            best_game: Optional[CandidateGame] = self._calculate_best_game(player)
             if best_game:
                 self._record(queue_action=QueueActions.GAME_FOUND,
                              team_x=[self.players.index(p) for p in best_game.team_x],

@@ -1,4 +1,5 @@
 import math
+from uuid import uuid4
 
 import pytest
 
@@ -91,13 +92,12 @@ class TestUnrestrictedGameManagerConfiguration:
 
         params = manager.get_parameters()
 
-        assert set(params.keys()) == {"team_size", "p_norm", "q_norm", "fairness_weight", "skill_window", "session_id"}
+        assert set(params.keys()) == {"team_size", "p_norm", "q_norm", "fairness_weight", "skill_window"}
         assert params["team_size"] == 3
         assert params["p_norm"] == 2.0
         assert params["q_norm"] == 1.5
         assert params["fairness_weight"] == 0.8
         assert params["skill_window"] == manager.skill_window
-        assert "session_id" in params
 
     def test_when_validating_config_with_valid_value_then_returns_value(self):
         result = UnrestrictedGameManager.validate_config(5, lambda x: x > 0, "test", "x > 0")
@@ -124,16 +124,15 @@ class TestUnrestrictedGameManagerPartitionAlgorithms:
         anchor = MockPlayer(1, 1000)
         remaining = {MockPlayer(2, 1100), MockPlayer(3, 1200), MockPlayer(4, 1300)}
 
-        def mock_create_candidate_game(*args, **kwargs):
+        def mock_construct_candidate_game(*args, **kwargs):
             return MockCandidateGame(anchor, frozenset({anchor}), frozenset(), imbalance=3.0)
 
-        monkeypatch.setattr(manager, '_create_candidate_game', mock_create_candidate_game)
+        monkeypatch.setattr(manager, '_construct_candidate_game', mock_construct_candidate_game)
 
-        game, value, count = manager._brute_force_partition(anchor, remaining)
+        game = manager._brute_force_partition(anchor, remaining)
 
         assert game is not None
-        assert value >= 0
-        assert count > 0
+        assert game.imbalance >= 0
 
     def test_when_greedy_partition_called_then_returns_balanced_game(self, monkeypatch):
         manager = UnrestrictedGameManager(team_size=2, approximate=True)
@@ -141,16 +140,15 @@ class TestUnrestrictedGameManagerPartitionAlgorithms:
         anchor = MockPlayer(1, 1000)
         remaining = {MockPlayer(2, 1100), MockPlayer(3, 1200), MockPlayer(4, 1300)}
 
-        def mock_create_candidate_game(*args, **kwargs):
+        def mock_construct_candidate_game(*args, **kwargs):
             return MockCandidateGame(anchor, frozenset({anchor}), frozenset(), imbalance=3.0)
 
-        monkeypatch.setattr(manager, '_create_candidate_game', mock_create_candidate_game)
+        monkeypatch.setattr(manager, '_construct_candidate_game', mock_construct_candidate_game)
 
-        game, value, count = manager._greedy_balanced_partition(anchor, remaining)
+        game = manager._greedy_balanced_partition(anchor, remaining)
 
         assert game is not None
-        assert value >= 0
-        assert count == 1
+        assert game.imbalance >= 0
 
 
 class TestUnrestrictedGameManagerPlayerManagement:
@@ -159,7 +157,7 @@ class TestUnrestrictedGameManagerPlayerManagement:
         manager = UnrestrictedGameManager()
         player = MockPlayer(1, 1500)
 
-        monkeypatch.setattr(manager, '_update_candidate_games_for_list', lambda x: None)
+        monkeypatch.setattr(manager, '_update_candidate_games_for_players', lambda x: None)
         manager._insert_player(player)
 
         assert player in manager.players
@@ -168,7 +166,7 @@ class TestUnrestrictedGameManagerPlayerManagement:
         manager = UnrestrictedGameManager()
         player = MockPlayer(1, 1500)
 
-        monkeypatch.setattr(manager, '_update_candidate_games_for_list', lambda x: None)
+        monkeypatch.setattr(manager, '_update_candidate_games_for_players', lambda x: None)
         manager._insert_player(player)
         assert player in manager.players
 
@@ -178,9 +176,9 @@ class TestUnrestrictedGameManagerPlayerManagement:
     def test_when_cancelling_then_sets_cancelled_flag(self):
         manager = UnrestrictedGameManager()
 
-        manager.cancel()
+        manager.cancel_matchmaking(str(uuid4()))
 
-        assert manager._cancelled is True
+        assert manager._is_cancelled is True
 
 
 class TestUnrestrictedGameManagerBestGameCalculation:
@@ -189,24 +187,24 @@ class TestUnrestrictedGameManagerBestGameCalculation:
         manager = UnrestrictedGameManager(team_size=2)
         player = MockPlayer(1, 1000)
 
-        monkeypatch.setattr(manager, '_update_candidate_games_for_list', lambda x: None)
+        monkeypatch.setattr(manager, '_update_candidate_games_for_players', lambda x: None)
         manager._insert_player(player)
 
-        result = manager._calculate_best_game_including_player(player)
+        result = manager._calculate_best_game(player)
 
         assert result is None
 
     def test_when_calculating_best_game_with_cancelled_flag_then_returns_none(self, monkeypatch):
         manager = UnrestrictedGameManager(team_size=2)
         player = MockPlayer(1, 1000)
-        manager._cancelled = True
+        manager._is_cancelled = True
 
-        monkeypatch.setattr(manager, '_update_candidate_games_for_list', lambda x: None)
+        monkeypatch.setattr(manager, '_update_candidate_games_for_players', lambda x: None)
         manager._insert_player(player)
         for i in range(2, 10):
             manager._insert_player(MockPlayer(i, 1000 + i * 10))
 
-        result = manager._calculate_best_game_including_player(player)
+        result = manager._calculate_best_game(player)
 
         assert result is None
 
@@ -214,7 +212,7 @@ class TestUnrestrictedGameManagerBestGameCalculation:
         manager = UnrestrictedGameManager(team_size=2)
         player = MockPlayer(1, 1000)
 
-        monkeypatch.setattr(manager, '_update_candidate_games_for_list', lambda x: None)
+        monkeypatch.setattr(manager, '_update_candidate_games_for_players', lambda x: None)
         manager._insert_player(player)
         for i in range(2, 20):
             manager._insert_player(MockPlayer(i, 1000 + i * 10))
@@ -227,7 +225,7 @@ class TestUnrestrictedGameManagerBestGameCalculation:
 
         monkeypatch.setattr(manager, '_partition_solver', mock_partition_solver)
 
-        result = manager._calculate_best_game_including_player(player)
+        result = manager._calculate_best_game(player)
 
         assert len(called) > 0
 
@@ -319,7 +317,7 @@ class TestGameManagerIntegration:
         assert manager.fairness_weight == 0.8
         assert manager._partition_solver == manager._greedy_balanced_partition
         assert manager.recorder is None
-        assert manager._cancelled is False
+        assert manager._is_cancelled is False
         assert len(manager.created_matches) == 0
 
     def test_when_comparing_brute_force_and_greedy_managers_then_different_solvers(self):

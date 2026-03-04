@@ -52,6 +52,6 @@ class TestTimeSensitiveGameManagerCandidateCreation:
         team_x = frozenset([MockPlayer(1, 1000)])
         team_y = frozenset([MockPlayer(2, 1100)])
 
-        game = manager._create_candidate_game(player, team_x, team_y)
+        game = manager._construct_candidate_game(player, team_x, team_y)
 
         assert game is not None

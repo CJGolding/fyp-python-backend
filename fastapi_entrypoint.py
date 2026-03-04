@@ -1,6 +1,8 @@
 import asyncio
 import logging
 from typing import Literal, Optional
+from uuid import uuid4
+
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
@@ -91,7 +93,7 @@ async def initialise_matchmaking(request: InitRequest) -> InitResponse:
     """
     try:
         approximate = request.matchmakingApproach == "Approximate"
-
+        session_id = str(uuid4())
         if request.mode == "Time-Sensitive":
             game_manager = TimeSensitiveGameManager(
                 team_size=request.teamSize,
@@ -113,11 +115,11 @@ async def initialise_matchmaking(request: InitRequest) -> InitResponse:
             )
 
         parameters = game_manager.get_parameters()
-        game_managers[parameters["session_id"]] = game_manager
+        game_managers[session_id] = game_manager
 
         return InitResponse(
             mode=request.mode,
-            sessionId=parameters["session_id"],
+            sessionId=session_id,
             teamSize=parameters["team_size"],
             pNorm=parameters["p_norm"],
             qNorm=parameters["q_norm"],
@@ -229,7 +231,7 @@ async def stop_session(request: StopRequest) -> StopResponse:
             raise HTTPException(status_code=404, detail="Session not found")
 
         game_manager = game_managers[request.sessionId]
-        game_manager.cancel()
+        game_manager.cancel_matchmaking(request.sessionId)
 
         stats = game_manager.recorder.get_stats()
 

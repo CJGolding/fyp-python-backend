@@ -8,12 +8,12 @@ class Recorder:
     def __init__(self) -> None:
         """Recorder for tracking the state of the matchmaking queue, candidate games and created matches over time."""
         self.steps: list[Step] = []
-        self.current_step_index: int = 0
-        self.queue_size: RecordedStatistic = []
-        self.heap_size: RecordedStatistic = []
-        self.max_wait_time: RecordedStatistic = []
-        self.min_priority: RecordedStatistic = []
-        self.min_imbalance: RecordedStatistic = []
+        self.__current_step_index: int = 0
+        self.__queue_size: RecordedStatistic = []
+        self.__heap_size: RecordedStatistic = []
+        self.__max_wait_time: RecordedStatistic = []
+        self.__min_imbalance: RecordedStatistic = []
+        self.__min_priority: RecordedStatistic = []
         self.__lock: Lock = Lock()
 
     def get_steps(self) -> list[RecordedStep]:
@@ -25,27 +25,26 @@ class Recorder:
         """Get statistics about the recorded steps for analysis."""
         with self.__lock:
             return {
-                "queue_size": self.queue_size.copy(),
-                "heap_size": self.heap_size.copy(),
-                "max_wait_time": self.max_wait_time.copy(),
-                "min_priority": self.min_priority.copy(),
-                "min_imbalance": self.min_imbalance.copy()
+                "queue_size": self.__queue_size.copy(),
+                "heap_size": self.__heap_size.copy(),
+                "max_wait_time": self.__max_wait_time.copy(),
+                "min_priority": self.__min_priority.copy(),
+                "min_imbalance": self.__min_imbalance.copy()
             }
 
     def record_step(self, **kwargs) -> None:
         """
-        Asynchronously record a new step with the optional parameter to control the clearing of previous steps.
-        The remaining keyword arguments are passed directly to the Step constructor.
-        :param kwargs: Keyword arguments passed to the Step constructor and control flags.
+        Asynchronously record a new step, passing keyword arguments directly to the Step constructor.
+        :param kwargs: Keyword arguments passed to the Step constructor.
         """
         with self.__lock:
             step: Step = Step(**kwargs)
             self.steps.append(step)
-            self.queue_size.append(len(step.queue_snapshot.state))
-            self.heap_size.append(len(step.heap_snapshot.state))
-            max_wait_time: float = max(player["wait_time"] for player in step.queue_snapshot.state) if step.queue_snapshot.state else None
-            self.max_wait_time.append(max_wait_time)
+            self.__queue_size.append(len(step.queue_snapshot.state))
+            self.__heap_size.append(len(step.heap_snapshot.state))
+            max_wait_time: float = max(player.pop("wait_time") for player in step.queue_snapshot.state) if step.queue_snapshot.state else None
+            self.__max_wait_time.append(max_wait_time)
             heap_top = step.heap_snapshot.state[0] if step.heap_snapshot.state else {}
-            self.min_priority.append(heap_top.get("priority"))
-            self.min_imbalance.append(heap_top.get("imbalance"))
-            self.current_step_index += 1
+            self.__min_priority.append(heap_top.get("priority"))
+            self.__min_imbalance.append(heap_top.get("imbalance"))
+            self.__current_step_index += 1

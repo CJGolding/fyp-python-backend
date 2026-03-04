@@ -51,6 +51,5 @@ type GameTeam = set[Player]
 type GamePlayers = set[Player]
 type AffectedPlayers = set[Player]
 type LambdaFunction = Callable[[Number], bool]
-type BestCandidateResult = tuple[CandidateGame, float, int]
-type PartitionFunction = Callable[[Player, GamePlayers], BestCandidateResult]
+type PartitionFunction = Callable[[Player, GamePlayers], Optional[CandidateGame]]
 type AsynchronousFunction = Callable

@@ -1,7 +1,7 @@
 from typing import Optional
 
 from common.functions import imbalance, priority
-from common.types import Player, GameTeam
+from common.types import Player, GameTeam, Number
 
 
 class CandidateGame:
@@ -24,7 +24,7 @@ class CandidateGame:
         self.priority: Optional[float] = priority(self.team_x, self.team_y, queue_weight,
                                                   self.imbalance) if queue_weight is not None else None
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Number]:
         """Convert CandidateGame to dictionary representation for recording."""
         return {
             "anchor_player_id": self.anchor_player.id,

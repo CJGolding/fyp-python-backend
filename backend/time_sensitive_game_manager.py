@@ -30,9 +30,8 @@ class TimeSensitiveGameManager(UnrestrictedGameManager):
         return f"Team Size: {self.team_size}, P: {self.p_norm}, Q: {self.q_norm}, α: {self.fairness_weight}, β: {self.queue_weight}, Window: {self.skill_window}"
 
     def get_parameters(self) -> RecordedParameters:
-        """Get the configuration parameters of the UnrestrictedGameManager for frontend (deprecated) state management."""
+        """Get the configuration parameters of the UnrestrictedGameManager for frontend state management."""
         return {
-            "session_id": self._session_id,
             "team_size": self.team_size,
             "p_norm": self.p_norm,
             "q_norm": self.q_norm,
@@ -41,5 +40,5 @@ class TimeSensitiveGameManager(UnrestrictedGameManager):
             "skill_window": self.skill_window
         }
 
-    def _create_candidate_game(self, player: Player, team_x: GameTeam, team_y: GameTeam) -> CandidateGame:
-        return CandidateGame(player, team_x, team_y, self.p_norm, self.q_norm, self.fairness_weight, self.queue_weight)
+    def _construct_candidate_game(self, anchor_player: Player, team_x: GameTeam, team_y: GameTeam) -> CandidateGame:
+        return CandidateGame(anchor_player, team_x, team_y, self.p_norm, self.q_norm, self.fairness_weight, self.queue_weight)
