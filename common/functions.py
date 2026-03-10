@@ -40,10 +40,11 @@ def q_uniformity(game_players: GamePlayers, q_norm: float) -> float:
     :param q_norm: The q-norm used for uniformity calculation (q).
     :return: The calculated q-uniformity of the players (v_q(Z)).
     """
+    mean = mean_skill(game_players)
     if q_norm == float('inf'):
-        return float(max(abs(player.skill - mean_skill(game_players)) for player in game_players))
+        return float(max(abs(player.skill - mean) for player in game_players))
     return ((1 / (len(game_players))) * sum(
-        abs(z.skill - mean_skill(game_players)) ** q_norm for z in game_players)) ** (1 / q_norm)
+        abs(z.skill - mean) ** q_norm for z in game_players)) ** (1 / q_norm)
 
 
 def imbalance(team_x: GameTeam, team_y: GameTeam, p_norm: float, q_norm: float, fairness_weight: float) -> float:

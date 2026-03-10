@@ -28,9 +28,9 @@ class UnrestrictedGameManager:
         The UnrestrictedGameManager class manages a matchmaking process for creating balanced games.
         It supports inserting players, creating matches, and recording the matchmaking process.
         :param team_size: Number of players per team (k), between 1 and 5.
-        :param p_norm: The p-norm used for fairness calculation (p), greater than or equal to 1.
-        :param q_norm: The q-norm used for uniformity calculation (q), greater than or equal to 1.
-        :param fairness_weight: Weighting factor for fairness in imbalance calculation (α), greater than 0.
+        :param p_norm: The p-norm used for fairness calculation (p), between 1 and 10.
+        :param q_norm: The q-norm used for uniformity calculation (q), between 1 and 10.
+        :param fairness_weight: Weighting factor for fairness in imbalance calculation (α), between 0 and 10.
         :param is_recording: Flag to enable or disable recording of the matchmaking process.
         :param approximate: Flag to enable or disable greedy approximation in matchmaking.
         """
@@ -267,7 +267,6 @@ class UnrestrictedGameManager:
         for player in affected_players:
             LOG.info(f"Removing player {player.id} from the queue.")
             affected_players = affected_players | self._remove_player(player, True)
-            LOG.info(f"Total affected players after removing player {player.id}: {len(affected_players)}")
         self._update_candidate_games_for_players(affected_players)
 
     def _update_candidate_games_for_players(self, affected_players: AffectedPlayers) -> None:
